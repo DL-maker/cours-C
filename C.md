@@ -361,3 +361,192 @@ ___
 - Labels locaux (ex : fib_loop) pour le code.
 
 ![[Pasted image 20250303164353.png]] ![[Pasted image 20250303164922.png]] ![[Pasted image 20250303165034.png]] ![[Pasted image 20250303165524.png]]
+
+---
+La mémoire et les langages de programmation : une vue d'ensemble
+
+Au cœur du système, les octets (8 bits) forment la RAM, organisée en stack (appels de fonctions), heap (données dynamiques) et text (code). La notation hexadécimale facilite la lecture des octets.
+
+Au-dessus, les adresses mémoire, données (floats, chars) et instructions sont gérées par l'MMU, qui traduit les adresses virtuelles en adresses physiques.
+
+L'assembleur (ASM) permet un contrôle direct de ces éléments, mais est complexe. Le C, plus abstrait, offre un équilibre entre performance et facilité d'utilisation.
+
+Les langages de haut niveau comme Python et les frameworks comme Django simplifient le développement d'applications complexes.
+
+Les MMaps (Memory Maps) sont utilisés pour mapper des fichiers en mémoire, optimisant les performances.
+
+En résumé, cette hiérarchie représente les différents niveaux d'abstraction entre le matériel et les applications, permettant aux développeurs de choisir le niveau approprié.
+
+![[Pasted image 20250304095010.png]]
+Creer un program assembleur:
+```asm
+/fib 10
+sys argv = ["fib", "10"]
+
+=> La ram nous attribue des addresse de memoire
+[134,130]
+```
+![[Pasted image 20250304100418.png]]
+** TRES PROBABLE QUE CELA CE RETROUVE DANS LE STACK
+Apres que le Kernel la seulemnt construit MAINTENAT JE DOIS A accessder
+![[Pasted image 20250304101106.png]]
+** agrc = Nombre de argument 
+   argv = Liste de arguement 
+
+```C
+main(int argc, char**argv)
+```
+int au debut indique la type envoyer par le programme
+=> argv = 138 => or address ...
+
+return 0; => Mettre 
+![[Pasted image 20250304103530.png]]
+```asm
+mov rdi, 0
+mov rax, 60
+syscall
+** Note => exit(0) = return 0
+```
+
+`char **argv` => c'est un caractere
+`char ** argv` => c'est un Pionter vers un caractere
+`char ** argv` => C'est l'addresse de l'address d'un caracter
+
+** Note pour debeug et appel systeme du programme : strace
+   Affichage en hexa les truc qu'il a recu : hexadump
+
+On va creer essay de creer un write() a la bonne taille de ...  la chaine de caractere
+Pour cela on scanne la RAM, sachant qu'il connait le premier caractere jusqu'a qu'il trouve 0 pour trouver la taille de la chaine de caractere.
+
+Si le first_char = 0 en retourne la taille de la chaine: o'u *first_char c'est un caractrer. 
+Sinon en ragoute + 1 a la variable len et on fait first_char = first_char + 1 => Pour avancer dans la ram
+![[Pasted image 20250304120138.png]]
+```C
+int write(int, char*, int);
+int read(int,char*,int);
+int exit(int);
+
+int string_size(char *first_char){
+        int len 0;
+        while (1){
+                if (*first_char == 0){
+                        return len;
+                }
+                else{
+                        len = len + 1;
+                        first_char = first_char + 1;
+                }
+        }
+}
+
+int main(int argc, char** argv[]){
+        write(1,*argv, string_size(*argv) );
+        exit(0);
+};
+```
+
+PYTHON VS C:
+Le passage de paramettre SONT TOTALEMENT DIFFERENT
+
+int write(int, char*, int);
+int read(int,char*,int);
+int exit(int);
+** Note des PROTOTYPE DE FONCTION
+
+---
+man 1 => Shell
+man 2 => syscall 
+man 3 => fonction stdi => stand out & stand int
+
+exemple :
+man 1 exit => Pour voir les prototype => <stdlib.h> (exit)
+man 3 write => Pour voir les prototype => <unistd.h> (read, write, ...)
+
+`# include fait un copier coller dans de les fonction`
+
+Sauvegarde a un pointer :
+```
+pushq %rbp
+```
+
+de placer les donners d'un pointer a un autre pointer : :
+```asm
+movq %rdi,  %rxa
+```
+
+...
+```
+movsql ... , ...
+```
+
+
+ELF => FORMA EXECUTABLE SUR LINUX
+
+Pour afficher le HEX + ASSEMBLEUR
+```
+objdump -Mintel -d nomfufichier
+```
+
+![[Pasted image 20250304145450.png]]
+erreur stgsegv => Indique que le code a essayer de lire dans une partie la ram qui est n'est pas autoriser
+
+** Rappel : Pour tranformer le chaine de caractere en chiffre => 
+```
+'8' - '0'= 8
+0x38 - 0x30 = 8
+```
+Pour reparer ce probleme => On mets comme condition dans main avant de executer le string_stat() c'st if argc >= 2 pour check elle n'est pas aussi grande dans le dossie dans le stop
+# A NE PAS OUBLIER 0 = 0x30
+
+```C
+int write(int, char*, int);
+int read(int,char*,int);
+int exit(int);
+
+int string_size(char *first_char){
+        int len 0;
+        while (1){
+                if (*first_char == 0){
+                        return len;
+                }
+                else{
+                        len = len + 1;
+                        first_char = first_char + 1;
+                }
+        }
+}
+
+int fib(int n) {
+    if (n < 2) {
+        return 1;
+    }
+    return fib(n-1) + fib(n-2);
+}
+
+void print_int(int values){
+        int last_digit = value%10;
+        int remaining_digits = values / 10;
+        char last_digit as a char = last_digit + 0x30;
+        if (remaining_digits){
+                print_int(remaining_digits)
+        }
+        write(1, &last_digit as a char, 1);
+        print_int(remaining_digits); 
+}
+
+int main(int argc, char** argv[]){
+        if (argc >=2){
+                char n_as_a_char = **(argv + 1);
+                int n = n_as_a_char - 0x30;
+                int result = fib(n);
+                print_int(result);
+                //write(1,*(argv+1), string_size(*(argv+1) ));
+                char new_line = 0x0A;
+                write(1, &new_line, 1);
+        }
+        exit(0);
+        
+        
+};
+
+```
