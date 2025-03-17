@@ -550,3 +550,101 @@ int main(int argc, char** argv[]){
 };
 
 ```
+
+---
+![[Pasted image 20250317111424.png]]
+Pour voir la RAM libre (sur Linux), il faut écrire free -h → le -h est pour que ce soit lisible pour un humain Chaque octet dans la RAM à son adresse, les registres n’ont pas d’addrese à t on le droit d’écrire partout dans la RAM ? 
+En théorie oui mais en pratique non Pourquoi l’inplémentation de fib qu’on a fait est si lente ? 
+Pour faire fib(6), il doit faire fib(5) + fib(4), pour faire fib(5) = fib(4) + fib(3), etc…
+
+![[Pasted image 20250317111634.png]]
+![[Pasted image 20250317111946.png]]
+```ASM
+global main
+add:
+	push rbp ;prologue
+	mov rbp, rsp ;prologue
+	add rdi, rsi ; -> rdi = rdi + rsi
+	mov rax, rdi
+	pop rbp ;epilogue
+	ret ;epilogue
+main:
+	push rbp
+	mov rbp, rsp
+	mov rdi, 11 ;1er argument
+	mov rsi, 12 ;2eme argument
+	call add
+	mov rax, 0 ;return 0 donc si le programme réussi
+	pop rbp
+	ret
+```
+
+On veut le compiler
+`nasm -g -f elf64 add.s -o add.o`
+fichier nasm
+`-g → pour avoir des symboles de debug`
+
+à la fin, cela nous fait un fichier .o qui n’est pas un programme
+
+gcc -g3 add.o -o add pour avoir le fichier en executable add est l’executable
+
+sans mov rax, 0 , quand on execute le programme, il crache et nous donne le nombre directement alors qu’avant on le voyait pas
+
+x/20i → explore 20 instructions à partir de cette adresse
+
+si → step instruction
+
+(gdb) → debugger d’Assembleur et de C
+
+Du gros au petit bout (de l’oeuf) → Big endian - gros boutiste Du petit au gros bout → Little endian - petit boutiste
+
+![[Pasted image 20250317113216.png]]
+
+outil a installer = 
+sudo apt install nasm
+sudo apt install gdb
+
+```
+nasm -g -f elf64 add.s -o add.o
+Maintenant le faire avec trois valeur
+Traduction en C
+gcc add.o -o add
+gdb add
+b main
+r
+exit
+./add
+echo $?
+```
+
+```C
+int add(int a, int b) {
+return a + b;
+}
+void main(void) {
+add(4, 8);
+}
+
+int main (void) { 
+	char un = '1'; 
+	char deux = '2'; 
+	char *hello1 = "Hello world\n";
+	char *hello2 = "Hola!\n";
+	print_string(hello1);
+	print_string(hello2);
+}
+
+void print_string(char *address_of_first_char) {
+while(1){
+	if (*address_of_first_char == 0)
+	return;
+	write(1, //sortie = stout
+	address_of_first_char, // addresse du premier caractère à afficher
+	1); //nombre de caractère à afficher
+	address_of_first_char += 1;
+	}
+}
+```
+
+
+
