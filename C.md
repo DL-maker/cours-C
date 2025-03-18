@@ -609,7 +609,7 @@ nasm -g -f elf64 add.s -o add.o
 Maintenant le faire avec trois valeur
 Traduction en C
 gcc add.o -o add
-gdb add
+	gdb add
 b main
 r
 exit
@@ -646,5 +646,238 @@ while(1){
 }
 ```
 
+---
+Aujourd’hui on va créer des nouveaux types
+`struct` pour créer un nouveau type
+```C 
+struct point {
+	int x;
+	int y;
+}; // Ce code crée la structure x et y et les met côte à côte
+```
 
+`typedef` permet de renommer un type
+```C
+int main (void) {
+	int toto;
+	struct point p1;
+	
+	p1.x = 10;
+	p1.y = 11;
+	
+	return 0;
+}
+```
+
+Le but de `malloc` est de gérer la heap
+```ASM
+Dump of assembleur code for function main:
+0x000... <+0>   push   %rbp
+0x000... <+1>   mov    %rsp, %rbp
+0x000... <+4>   movl   $0xa, -0x8(%rbp)
+0x000... <+11>  movl   $0xb, -0x4(%rbp)
+0x000... <+18>  mov    $0x0, %eax
+0x000... <+23>  pop    %rbp
+0x000... <+24>  ret
+End of assembleur dump
+```
+![[Pasted image 20250317113747.png]]
+
+On veut que le fonctionne aggrandise la partie utilise de la stack pour ce code(?)
+
+```C
+int write(int, char *, int); //pour savoir dans quel registre il faut ele mettre 
+
+int main (void) {
+	int toto;
+	struct point p1;
+	
+	p1.x = 10;
+	p1.y = 11;
+	
+	write(1, "hello\n", 6);
+	
+	return 0;
+}
+```
+
+```ASM
+Dump of assembleur code for function main:
+0x000... <+0>   push   %rbp
+0x000... <+1>   mov    %rsp, %rbp
+0x000... <+4>   sub    $0x10, %rsp # Cette ligne montre que la taille est 
+									agradit pour pouvoir mettre rsp dans la 
+									stack
+								-> int toto et struct point p1
+```
+
+![[Pasted image 20250317113902.png]]
+![[Pasted image 20250317114701.png]]
+Le code attribue à `toto` 4 octets et à `point` 8 octets, car puisque `point` sait qu'il est seul, il veut organiser à sa guise.
+
+```bash
+hexdump -C fichier.png
+```
+
+![[Pasted image 20250317115432.png]]
+```
+sudo apt install strace
+strace file file.pdf
+```
+![[Pasted image 20250317120834.png]]
+Les pallettte sert a attribuer des couleur en HEX
+
+wiki Profondeur de C 
+
+```C
+struct png { // Coder un decodeur de PNG
+
+int data_ength;
+
+int chunk_name;
+
+int width;
+
+int height;
+
+unsigned char bit_depth;
+
+unsigned char color_type;
+
+unsigned char compression;
+
+unsigned char filter;
+
+unsigned char interleaving;
+
+}
+```
+
+Mais le problème est que le code doit fonctionner même lorsque le PDF a une architecture de 4 octets de décalage. Cela fonctionne sur l'ordinateur du professeur, mais cela ne marchera pas nécessairement chez les autres.
+
+```C
+struct png { // Coder un decodeur de PNG
+
+int data_ength;
+
+int chunk_name;
+
+int width;
+
+int height;
+
+unsigned char bit_depth;
+
+unsigned char color_type;
+
+unsigned char compression;
+
+unsigned char filter;
+
+unsigned char interleaving;
+
+}
+
+  
+
+int main (void) {
+
+unsigned char png_data[29];
+
+// File Descriptor (Numero du fichier)
+
+int fd = open("test.png", O_RDONLY);
+
+if (fd == -1){
+
+printf("Can't open test.png\n");
+
+return 1;
+
+}
+
+read(fd, png_data, 29);
+
+return 0;
+
+}
+```
+
+## /!\ Pourquoi png data.width et png_data.height valent autant ????????????? /!\
+Quand on affiche les octets => 
+```
+(gdb) x/4x &png_data.height
+0x574658465873658736 : 0x00 0x00 0x01 0x5e 
+```
+LE VRAI PROBLEME C'EST QUE LA STRUCTURE EST ON little indiane donc il fait le lire de manier inverse
+
+```C
+#include <endian.h>
+#include <stdlib.h>
+#include <math.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <fcntl.h>
+
+struct png {
+    uint64_t sig;
+    uint32_t data_length;
+    uint32_t chunk_name;
+    uint32_t width;
+    uint32_t height;
+    unsigned char bit_depth;
+    unsigned char color_type;
+    unsigned char compression;
+    unsigned char filter;
+    unsigned char interleaving;
+};
+
+struct point {
+    long x;
+    long y;
+};
+
+double point_dist_from_point(struct point self, struct point other) {
+    return sqrt(
+        pow(self.x - other.x, 2) +
+        pow(self.y - other.y, 2)
+    );
+}
+
+double point_dist_from_origin(struct point self) {
+    struct point origin;
+
+    origin.x = 0;
+    origin.y = 0;
+
+    return point_dist_from_point(self, origin);
+}
+
+void point_print(struct point self) {
+    printf("Point(x=%ld, y=%ld)\n", self.x, self.y);
+}
+
+int main(void) {
+    struct png png_data;
+    // File Descriptor (numéro du fichier)
+    int fd = open("test.png", O_RDONLY);
+
+    if (fd == -1) {
+        printf("Can't open test.png\n");
+        return EXIT_FAILURE;
+    }
+
+    read(fd, &png_data, sizeof(png_data));
+
+    png_data.height = be32toh(png_data.height);
+    png_data.width = be32toh(png_data.width);
+
+    printf("%s: %d×%d\n", "test.png", png_data.width, png_data.height);
+    return EXIT_SUCCESS;
+}
+```
+Dans la bibliotheque `#include <stdint.h>` il y a  le unint{bits}
+
+---
 
