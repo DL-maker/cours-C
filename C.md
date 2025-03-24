@@ -879,5 +879,250 @@ int main(void) {
 ```
 Dans la bibliotheque `#include <stdint.h>` il y a  le unint{bits}
 
+___
 ---
+
+On va aujourd'huis en va voir les outil autour de C
+```C
+#include <fcntl.h>
+
+int main(void){
+char data[1024];
+int fd = open("Hello.md", O_RDONLY);
+
+close(fd);
+
+return 0;
+}
+```
+On peut utiliser des fichier avec des parametre tels que 
+`char data[1024];` => Lire les 1024 caractere (octet) MEME SI LA VALEUR C 0 => mais on 
+`O_RDONLY` => Open en Lecture => en le prefixe pour que on n'as pas espace de nommage en C donc on evite quelle soit et devient une source de ecrasement
+`close(fd);` => Fermeture du fichier => Si on ne le close pas que ce passe t'il ? => Le kernel va libret l'espace et donc fermer le fichier MAIS quand le code meur.
+
+
+---
+```C
+#include <fcntl.h>
+#include <unistd.h>
+
+int main(void){
+char data[1024];
+int fd = open("Hello.md", O_RDONLY);
+
+ssize_t nb_bytes =  read(fd, data, 1024);
+
+close(fd);
+
+write(1, data, nb_bytes);
+
+return 0;
+}
+```
+
+`ssize_t nb_bytes =  read(fd, data, 1024);` =>
+`write(1, data, nb_bytes);` => 
+
+---
+Comment ecrire un caractere nul dan sun fichier POUR voir que le  `read(fd, data, 1024)` qu'il puisse lire ou non un caractere null
+
+```C
+#include <fcntl.h>
+#include <unistd.h>
+
+int main(void){
+if (argc < 2) {
+	printf("Please give me a filename as arguement \n);
+	retirn EXIT_FAILURE;
+}
+
+char data[1024];
+int fd = open(argv+1, O_RDONLY); // ou ARGV+1
+
+ssize_t nb_bytes =  read(fd, data, 1024);
+
+close(fd);
+
+write(1, data, nb_bytes);
+
+return 0;
+}
+```
+![[Pasted image 20250318103058.png]]
+
+** Note : `argv[1] = * (argv + 1) = *(1 + argv)`
+
+---
+dans le <stdlib.h> il y a comme fonctionnaliter `int getc(FILE *stream);`
+=> Car si getc  prends en compte un octet 
+
+---
+`strace` pour voir tout les appel system
+exemple :
+```bash
+strace ./a.out
+```
+option 
+-o  => Mettre un aout put sur un fichier 
+-s =>  Pour afficher les hex cacher par defaut
+-f => Si le programme invoque un autre programme ce programme va etre s trace
+
+---
+`readelf` Pour afficher les en-tete d'un fichier info :
+`readelf -h` 
+```bash
+...txt...
+Adresse du point d'entree : 0x10a0 => On peut seulemnt dire que le pointe d'entre en relatif et non exacte car quand on execute le programme le kernel le meme de manier "Random"
+...txt...
+```
+
+-a => pour tout afficher
+On a trouver :
+```bash
+(Requisition de l'interpreteur de programme: /lib64/ld-linux-x86-64.so.2)
+```
+C'est quoi ld => c'est un linqueur qui est l’adresse de la RAM
+Il va même le code de printf dans le ld
+** Note => A approfondie
+___
+Si on continue a faire un programme qui est donner la même mémoire les fonction dans la RAM
+il peut etre exploitet (exemple BufferFlow)
+___
+
+`gdb` => Debeugeur
+```bash
+b  main
+```
+sert a mettre des pints d'arret
+```
+r [(variable si besion pour le code)]
+```
+executer le code 
+```
+n
+```
+Pour passer au prochain points d'arret
+```
+p [un variable]
+```
+pour afficher les variables ou sont placer dans la RAM
+```
+x/[NOMBRE DE D'instruction] (avec c pour caractere ou b pour bite ou a pour adresse )
+```
+EXEMPLE 
+```bash
+(gdb) x/3a argv 0x7fffffffdd68: 0x7fffffffe0fa 0x7fffffffe117                      0x7fffffffdd78: 0x0 
+(gdb) x/10c 0x7fffffffe0fa 0x7fffffffe0fa: 47 '/' 104 'h' 111 'o' 109 'm' 101 'e' 47 '/' 109 'm' 100 'd' 
+0x7fffffffe102: 107 'k' 47 '/' 
+(gdb) x/10c 0x7fffffffe117 
+0x7fffffffe117: 104 'h' 101 'e' 108 'l' 108 'l' 111 'o' 46 '.' 109 'm' 100 'd' 
+0x7fffffffe11f: 0 '\000' 80 'P'
+```
+
+BONUS il y a une version graphique de gdb `gdb -tui`
+        autre extention comme `gef` bien presenter MAIS il faut se abituer
+
+---
+`objdump` => ...
+-d => deassembler
+-Mintel => Pour les processus INTEL
+-D => Deasemble tout ce qui n'est pas du code aussi exemple (des commentaire)
+
+___
+`nm` => ...
+exemple de commande :
+`nm hello`
+`nm -D /usr/lib/x86_64-linux-gnu/libc.so.6`
+
+___
+valgrind => Pour voir que la gestion du code dans la memoire  
+EXEMPLE 
+```bash
+ld@LD:~$ valgrind ls
+==7250== Memcheck, a memory error detector
+==7250== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==7250== Using Valgrind-3.19.0 and LibVEX; rerun with -h for copyright info
+==7250== Command: ls
+==7250== 
+add    add.s	Documents  Music     Public	Videos
+add.o  Desktop	Downloads  Pictures  Templates
+==7250== 
+==7250== HEAP SUMMARY:
+==7250==     in use at exit: 23,939 bytes in 18 blocks
+==7250==   total heap usage: 55 allocs, 37 frees, 63,422 bytes allocated
+==7250== 
+==7250== LEAK SUMMARY:
+==7250==    definitely lost: 0 bytes in 0 blocks
+==7250==    indirectly lost: 0 bytes in 0 blocks
+==7250==      possibly lost: 0 bytes in 0 blocks
+==7250==    still reachable: 23,939 bytes in 18 blocks
+==7250==         suppressed: 0 bytes in 0 blocks
+==7250== Rerun with --leak-check=full to see details of leaked memory
+==7250== 
+==7250== For lists of detected and suppressed errors, rerun with: -s
+==7250== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+```
+___
+makefile => faire des raccoucie
+EXEMPLE DE CONTENUE DE MAKEFILE
+```
+hello.o: hello.c
+	cc $(CFLAGS) -c hello.c -o hello.o
+
+hello: hello.o
+	cc hello.o -o hello
+
+.PHONY: clean
+clean:
+	rm -f hello hello.o
+```
+
+___
+![[Pasted image 20250318142741.png]]
+
+BRK => 
+
+** Note : perror => Affiche l'erreur 
+```C
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+char *read_file(char *filename){
+    void *base_brk = sbrk(1000);
+    int fd = open(filename, O_RDONLY);
+    if (fd==-1){
+        return NULL;
+    }
+    ssize_t byte_read = read(fd, base_brk, 999);
+    close(fd);
+    *(base_brk + byte_read) = '/0'; 
+    return base_brk
+}
+
+
+int main(int argc, char *argv[]) {
+    // argv[0] == "read file" le nom du programme
+    // argv[1] : son premier parametre
+    // argv[2] : son 2eme parametre
+    // ...
+    if (argc < 2){
+        printf("Donner une valeur...");
+        return EXIT_FAILURE;
+    }
+
+    char * file_contents = read_file(argv[1]);
+    if (file_contents) {
+        print_file_contents(file_contents);
+    }
+    return EXIT_SUCCESS;
+}
+```
+
+le `file_contents` => l'adresse va vers la stack et l'autre va en la heap
+
+
+
+
 
