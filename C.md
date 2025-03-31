@@ -1121,8 +1121,6 @@ int main(int argc, char *argv[]) {
 ```
 
 le `file_contents` => l'adresse va vers la stack et l'autre va en la heap
-
-
-
+___
 
 
